@@ -293,7 +293,18 @@ function bindEvents() {
     // 清理缓存按钮
     clearCacheBtn.addEventListener('click', clearAllCache);
 
-    // 同步按钮事件（仅保留手动下载）
+    // 同步按钮事件（上传/下载）
+    document.getElementById('uploadBtn').addEventListener('click', function () {
+        showToast('正在上传书签...');
+        chrome.runtime.sendMessage({ name: 'upload' }, function (res) {
+            if (chrome.runtime.lastError) {
+                showToast('上传失败: ' + chrome.runtime.lastError.message);
+                return;
+            }
+            showToast(res.message);
+        });
+    });
+
     document.getElementById('downloadBtn').addEventListener('click', function () {
         if (!confirm('⚠️ 下载操作将先清空本地所有书签，再从 Gist 拉取数据覆盖。\n\n此操作不可撤销，确定继续？')) return;
         showToast('正在下载书签...');
