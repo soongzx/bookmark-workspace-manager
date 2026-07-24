@@ -57,6 +57,8 @@ function highlightMatch(text, query) {
 function applyTheme(theme) {
     document.body.setAttribute('data-theme', theme);
     localStorage.setItem('workspace_theme', theme);
+    // 同步到统一设置
+    try { saveSyncSettings({ theme: theme }, function(){}); } catch(e) {}
     document.querySelectorAll('.theme-dot').forEach(function(d) { d.classList.toggle('active', d.dataset.theme === theme); });
     if (panel1Path.length) renderPanel(panelBody1, panel1Path, panel1Title, panel1Path[0]?.title || '');
     if (dualMode && panel2Path.length) renderPanel(panelBody2, panel2Path, panel2Title, panel2Path[0]?.title || '');
@@ -197,6 +199,32 @@ function hideActivePanelHint() {
 }
 
 // ========== 事件绑定与初始化 ==========
+// 下载完成后刷新书签视图
+async function refreshBookmarkView() {
+    try {
+        var tree = await chrome.bookmarks.getTree();
+        bookmarkTreeRoot = tree[0];
+        bookmarksBarNode = findBookmarksBar(bookmarkTreeRoot, window._bookmarkRootPath || 'auto');
+        if (!bookmarksBarNode) {
+            panelBody1.innerHTML = '<div class="empty-state"><span>❌ 未找到书签栏</span></div>';
+            return;
+        }
+        workspaceFolders = (bookmarksBarNode.children || []).filter(function(c) { return !c.url && c.children; });
+        allBookmarksFlat = [];
+        flattenBookmarks(bookmarkTreeRoot, [], allBookmarksFlat);
+        renderFilterButtons();
+        setupDropTargets();
+        document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+        panelBody1.innerHTML = '<div class="empty-state"><span>📭 暂无内容</span></div>';
+        panelBody2.innerHTML = '';
+        panel1Title.textContent = '📂 工作区 1';
+        panel2Title.textContent = '📂 工作区 2';
+    } catch (e) {
+        console.error(e);
+        panelBody1.innerHTML = '<div class="empty-state"><span>❌ 加载失败</span></div>';
+    }
+}
+
 function bindEvents() {
     // 搜索框事件
     let debounce;
@@ -265,6 +293,29 @@ function bindEvents() {
     // 清理缓存按钮
     clearCacheBtn.addEventListener('click', clearAllCache);
 
+    // 同步按钮事件（仅保留手动下载）
+    document.getElementById('downloadBtn').addEventListener('click', function () {
+        if (!confirm('⚠️ 下载操作将先清空本地所有书签，再从 Gist 拉取数据覆盖。\n\n此操作不可撤销，确定继续？')) return;
+        showToast('正在下载书签...');
+        chrome.runtime.sendMessage({ name: 'download' }, function (res) {
+            if (chrome.runtime.lastError) {
+                showToast('下载失败: ' + chrome.runtime.lastError.message);
+                return;
+            }
+            showToast(res.message);
+            // 下载完成后刷新视图
+            localStorage.removeItem('workspace_panel1Path');
+            localStorage.removeItem('workspace_panel2Path');
+            panel1Path = [];
+            panel2Path = [];
+            refreshBookmarkView();
+        });
+    });
+
+    document.getElementById('settingsBtn').addEventListener('click', function () {
+        chrome.runtime.sendMessage({ name: 'openSettings' });
+    });
+
     // 双面板相关（切换、分隔条拖动）
     setupDualMode();
 }
@@ -278,6 +329,37 @@ async function init() {
         document.getElementById('appVersion').textContent = 'v' + manifest.version;
     } catch (e) {}
     initUI();           // 初始化提示元素等 UI 组件
+
+    // 读取统一设置中的主题和书签路径
+    try {
+        var settings = await new Promise(function(resolve) {
+            getSyncSettings(function(items) { resolve(items); });
+        });
+        if (settings.theme) {
+            localStorage.setItem('workspace_theme', settings.theme);
+        }
+        window._bookmarkRootPath = settings.bookmarkRootPath || 'auto';
+
+        // 自动下载：如果开启且配置完整，先下载再显示
+        if (settings.autoDownload && settings.githubToken && settings.gistID && settings.gistFileName) {
+            panelBody1.innerHTML = '<div class="empty-state"><span>⏳ 正在自动同步书签...</span></div>';
+            var dlResult = await new Promise(function(resolve) {
+                chrome.runtime.sendMessage({ name: 'download' }, function(res) {
+                    resolve(res);
+                });
+            });
+            if (dlResult && dlResult.success) {
+                // 下载完成后，清除旧路径，重新加载书签树
+                localStorage.removeItem('workspace_panel1Path');
+                localStorage.removeItem('workspace_panel2Path');
+                panel1Path = [];
+                panel2Path = [];
+            }
+        }
+    } catch (e) {
+        window._bookmarkRootPath = 'auto';
+    }
+
     initTheme();
     initScales();
     panel2El.style.display = 'none';
@@ -292,7 +374,7 @@ async function init() {
     try {
         const tree = await chrome.bookmarks.getTree();
         bookmarkTreeRoot = tree[0];
-        bookmarksBarNode = findBookmarksBar(bookmarkTreeRoot);
+        bookmarksBarNode = findBookmarksBar(bookmarkTreeRoot, window._bookmarkRootPath || 'auto');
         if (!bookmarksBarNode) {
             panelBody1.innerHTML = '<div class="empty-state"><span>❌ 未找到书签栏</span></div>';
             return;

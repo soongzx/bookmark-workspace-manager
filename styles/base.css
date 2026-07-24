@@ -1,47 +1,59 @@
-/* ========== CSS 变量（默认 & 主题） ========== */
+/* ========== CSS 变量（xAI-inspired 设计系统） ========== */
 :root {
     --panel-scale: 1;
     --panel-wrap: wrap;
-    --bg: #0A0A0A;
-    --card-bg: #121212;
-    --text: #F5F5F5;
-    --text-secondary: #A0A0A0;
-    --accent: #D4AF37;
-    --accent-light: rgba(212, 175, 55, 0.15);
-    --accent-glow: rgba(212, 175, 55, 0.2);
-    --btn-bg: #1A1A1A;
-    --btn-hover-bg: #252525;
-    --border: #2A2A2A;
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.6);
-    --toolbar-bg: rgba(10,10,10,0.85);
-    --level-color: 212, 175, 55;
-    --toast-bg: #D4AF37;
-    --toast-text: #0A0A0A;
-    --divider-line: #2A2A2A;
+    --canvas: #0a0a0a;
+    --canvas-card: #191919;
+    --canvas-soft: #1a1c20;
+    --canvas-mid: #363a3f;
+    --ink: #ffffff;
+    --ink-hover: #fafaf7;
+    --body: #dadbdf;
+    --body-mid: #7d8187;
+    --hairline: #212327;
+    --accent: #ff7a17;
+    --accent-light: rgba(255, 122, 23, 0.12);
+    --accent-glow: rgba(255, 122, 23, 0.2);
+    --btn-bg: transparent;
+    --btn-hover-bg: rgba(255, 255, 255, 0.05);
+    --border: var(--hairline);
+    --level-color: 255, 122, 23;
+    --toast-bg: #ffffff;
+    --toast-text: #0a0a0a;
+    --divider-line: var(--hairline);
+    --radius-sm: 8px;
+    --radius-pill: 9999px;
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 12px;
+    --spacing-lg: 16px;
+    --spacing-xl: 24px;
 }
 
 body[data-theme="dark-crimson"] {
-    --bg: #141414; --card-bg: #1C1C1C; --text: #FAFAFA; --text-secondary: #9CA3AF;
-    /* ★ 高亮效果改为半透明红色光晕 */
+    --canvas: #141414; --canvas-card: #1C1C1C; --canvas-soft: #1a1c20;
+    --ink: #FAFAFA; --body: #dadbdf; --body-mid: #7d8187;
     --accent: rgba(220, 38, 38, 0.85);
-    --accent-light: rgba(220, 38, 38, 0.18);
-    --accent-glow: rgba(220, 38, 38, 0.25);
-    --btn-bg: #252525; --btn-hover-bg: #333; --border: #333; --toolbar-bg: rgba(20,20,20,0.85);
+    --accent-light: rgba(220, 38, 38, 0.15);
+    --accent-glow: rgba(220, 38, 38, 0.2);
+    --hairline: #2a2a2a; --border: var(--hairline);
     --level-color: 220, 38, 38;
     --toast-bg: #DC2626; --toast-text: #FAFAFA;
 }
 
 body[data-theme="ocean-blue"] {
-    --bg: #0B1426; --card-bg: #111D35; --text: #E2E8F0; --text-secondary: #94A3B8;
+    --canvas: #0B1426; --canvas-card: #111D35; --canvas-soft: #0d1a30;
+    --ink: #E2E8F0; --body: #94A3B8; --body-mid: #64748B;
     --accent: #22D3EE; --accent-light: rgba(34, 211, 238, 0.1); --accent-glow: rgba(34, 211, 238, 0.15);
-    --btn-bg: #162544; --btn-hover-bg: #1E3A5F; --border: #1E3A5F; --toolbar-bg: rgba(11,20,38,0.85);
+    --hairline: #1E3A5F; --border: var(--hairline);
     --level-color: 34, 211, 238; --toast-bg: #22D3EE; --toast-text: #0B1426;
 }
 
 body[data-theme="warm-light"] {
-    --bg: #FDF8E8; --card-bg: #FFFFFF; --text: #2D2418; --text-secondary: #5C4D3C;
+    --canvas: #FDF8E8; --canvas-card: #FFFFFF; --canvas-soft: #f5f0e0;
+    --ink: #2D2418; --body: #5C4D3C; --body-mid: #8B7D6B;
     --accent: #B4783C; --accent-light: rgba(180, 120, 60, 0.08); --accent-glow: rgba(180, 120, 60, 0.12);
-    --btn-bg: #F5EDD6; --btn-hover-bg: #EDE0C0; --border: #E5DCC3; --toolbar-bg: rgba(253,248,232,0.9);
+    --hairline: #E5DCC3; --border: var(--hairline);
     --level-color: 180, 120, 60; --toast-bg: #B4783C; --toast-text: #FFF;
 }
 
@@ -50,8 +62,9 @@ body[data-theme="warm-light"] {
 html { height:auto; }
 body {
     min-height:100vh;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: var(--bg); color: var(--text);
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    font-weight: 400;
+    background: var(--canvas); color: var(--ink);
     display:flex; flex-direction:column;
     transition: background 0.3s, color 0.3s;
     -webkit-font-smoothing: antialiased;

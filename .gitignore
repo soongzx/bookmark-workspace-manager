@@ -60,6 +60,8 @@ coverage/
 # ====================
 *.tmp
 *.temp
+*.bak
+manifest.json.bak
 .cache/
 
 # ====================
@@ -67,3 +69,4 @@ coverage/
 # ====================
 # icons/*.png
 # !icons/.gitkeep
+*.chrome

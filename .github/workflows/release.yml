@@ -16,26 +16,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Read version from manifest.json
+      # 从 GitHub Secret 写入签名密钥（如已配置）
+      - name: Restore signing key
+        env:
+          CRX_KEY: ${{ secrets.CRX_SIGNING_KEY }}
+        run: |
+          if [ -n "$CRX_KEY" ]; then
+            echo "$CRX_KEY" > deployment/key.pem
+            echo "[INFO] 签名密钥已从 Secret 恢复"
+          else
+            echo "[INFO] 未配置 CRX_SIGNING_KEY，将自动生成新密钥（仅限测试）"
+          fi
+
+      - name: Read version from VERSION file
         id: version
         run: |
-          VERSION=$(node -p "require('./manifest.json').version")
+          VERSION=$(head -n 1 VERSION | tr -d '[:space:]')
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Create release zip
+      - name: Build package
         run: |
-          # Exclude docs, .git, .github, and CI files
-          zip -r "bookmark-workspace-manager-v${{ steps.version.outputs.VERSION }}.zip" . \
-            -x ".git/*" \
-            -x ".github/*" \
-            -x "docs/*" \
-            -x "AGENTS.md" \
-            -x "LICENSE"
+          bash deployment/build.sh
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: "bookmark-workspace-manager-v${{ steps.version.outputs.VERSION }}.zip"
+          files: |
+            dist/bookmark-workspace-manager-v${{ steps.version.outputs.VERSION }}.zip
+            dist/bookmark-workspace-manager-v${{ steps.version.outputs.VERSION }}.crx
           name: "v${{ steps.version.outputs.VERSION }}"
           tag_name: "v${{ steps.version.outputs.VERSION }}"
           generate_release_notes: true

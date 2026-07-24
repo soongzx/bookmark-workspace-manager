@@ -1,19 +1,33 @@
 {
     "manifest_version": 3,
     "name": "Bookmark Workspace Manager",
-    "version": "1.0",
+    "version": "2.0.5",
     "description": "以workspace方式管理书签，支持多列树状展示、多主题、双面板对比与状态记忆",
-    "permissions": ["bookmarks", "storage"],
+    "permissions": ["bookmarks", "storage", "notifications", "alarms"],
+    "host_permissions": [
+        "https://api.github.com/*",
+        "https://gist.githubusercontent.com/*"
+    ],
+    "options_ui": {
+        "page": "settings.html",
+        "open_in_tab": true
+    },
     "background": {
         "service_worker": "background.js"
     },
     "action": {
-        "default_title": "📑 书签工作区"
+        "default_title": "Bookmark Workspace Manager"
     },
     "icons": {
         "16": "icons/icon16.png",
         "32": "icons/icon32.png",
         "48": "icons/icon48.png",
         "128": "icons/icon128.png"
+    },
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "bookmark-workspace-manager@example.com",
+            "strict_min_version": "117.0"
+        }
     }
 }

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统设置 - 收藏夹工作区管理系统</title>
+    <style>
+        :root {
+            --canvas: #0a0a0a;
+            --canvas-card: #191919;
+            --canvas-soft: #1a1c20;
+            --ink: #ffffff;
+            --body: #dadbdf;
+            --body-mid: #7d8187;
+            --hairline: #212327;
+            --accent: #ff7a17;
+            --accent-light: rgba(255,122,23,0.12);
+            --danger: #DC2626;
+            --success: #27AE60;
+            --radius-sm: 8px;
+            --radius-pill: 9999px;
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 12px;
+            --spacing-lg: 16px;
+            --spacing-xl: 24px;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            background: var(--canvas);
+            color: var(--ink);
+            font-family: Inter, system-ui, -apple-system, sans-serif;
+            font-weight: 400;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+        .settings-page {
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 32px 24px;
+        }
+        .settings-page h1 {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+        .settings-page .subtitle {
+            font-size: 14px;
+            color: var(--body-mid);
+            margin-bottom: 24px;
+        }
+        .tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid var(--hairline);
+            margin-bottom: 24px;
+        }
+        .tab-btn {
+            padding: 14px 28px;
+            border: none;
+            background: none;
+            color: var(--body-mid);
+            font-size: 15px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: color 0.2s, border-color 0.2s;
+            font-family: inherit;
+        }
+        .tab-btn:hover { color: var(--ink); }
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .form-group { margin-bottom: 24px; }
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: var(--ink);
+        }
+        .form-group .hint {
+            font-size: 12px;
+            color: var(--body-mid);
+            margin-top: 4px;
+        }
+        .form-group .hint a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        .form-group .hint a:hover { text-decoration: underline; }
+        .input-row { display: flex; gap: 8px; }
+        .input-row input { flex: 1; }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
+            background: var(--canvas-soft);
+            color: var(--ink);
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus, input[type="password"]:focus {
+            border-color: var(--accent);
+        }
+        select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
+            background: var(--canvas-soft);
+            color: var(--ink);
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            appearance: auto;
+        }
+        select:focus { border-color: var(--accent); }
+        select option { background: var(--canvas-card); color: var(--ink); }
+        .toggle-input-btn {
+            padding: 10px 14px;
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
+            background: var(--canvas-soft);
+            color: var(--body-mid);
+            font-size: 13px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.2s;
+        }
+        .toggle-input-btn:hover { background: var(--canvas-mid); }
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .checkbox-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+        .checkbox-row label { margin-bottom: 0; cursor: pointer; }
+        .theme-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .theme-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border: 1px solid var(--hairline);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .theme-card:hover { border-color: var(--accent); }
+        .theme-card.active { border-color: var(--accent); background: rgba(212,175,55,0.08); }
+        .theme-dot {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            border: 1px solid var(--hairline);
+        }
+        .theme-dot.dark-gold { background: linear-gradient(135deg, #1a1a2e, #d4af37); }
+        .theme-dot.dark-crimson { background: linear-gradient(135deg, #1a1a2e, #dc2626); }
+        .theme-dot.ocean-blue { background: linear-gradient(135deg, #0a1628, #2563eb); }
+        .theme-dot.warm-light { background: linear-gradient(135deg, #f5f0e8, #d4af37); }
+        .theme-card .theme-label { font-size: 14px; }
+        .theme-card .theme-desc { font-size: 12px; color: var(--body-mid); }
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 28px;
+            padding-top: 20px;
+            border-top: 1px solid var(--hairline);
+        }
+.btn {
+            padding: 10px 24px;
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-pill);
+            font-size: 14px;
+            font-weight: 400;
+            cursor: pointer;
+            transition: background 0.2s, opacity 0.2s;
+            font-family: inherit;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: var(--canvas);
+            border-color: var(--accent);
+        }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-secondary {
+            background: transparent;
+            color: var(--ink);
+        }
+        .btn-secondary:hover { background: var(--canvas-soft); }
+        .btn-danger {
+            padding: 10px 24px;
+            border: 1px solid rgba(220, 38, 38, 0.3);
+            border-radius: var(--radius-pill);
+            font-size: 14px;
+            font-weight: 400;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            background: transparent;
+            color: #DC2626;
+        }
+        .btn-danger:hover { border-color: #DC2626; background: rgba(220, 38, 38, 0.1); }
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: var(--radius-sm);
+            background: var(--accent);
+            color: #0A0A0A;
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            z-index: 1000;
+        }
+        .toast.show { opacity: 1; visibility: visible; }
+        .root-path-preview {
+            margin-top: 12px;
+            padding: 12px 16px;
+            background: var(--canvas-soft);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            color: var(--body-mid);
+            line-height: 1.6;
+        }
+        .root-path-preview strong { color: var(--ink); }
+    </style>
+</head>
+<body>
+    <div class="settings-page">
+        <h1>系统设置</h1>
+        <div class="subtitle">收藏夹工作区管理系统 - 全局配置</div>
+
+        <div class="tabs" id="tabBar">
+            <button class="tab-btn active" data-tab="syncConfig">同步配置</button>
+            <button class="tab-btn" data-tab="syncManual">手动同步</button>
+            <button class="tab-btn" data-tab="syncAuto">同步设置</button>
+            <button class="tab-btn" data-tab="theme">主题设置</button>
+            <button class="tab-btn" data-tab="bookmarkPath">书签路径</button>
+        </div>
+
+        <!-- Tab 1: 同步配置 -->
+        <div class="tab-content active" id="tabSyncConfig">
+            <div class="form-group">
+                <label for="githubToken">GitHub Token</label>
+                <div class="input-row">
+                    <input type="password" id="githubToken" name="githubToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+                    <button type="button" class="toggle-input-btn" id="toggleTokenBtn">显示</button>
+                </div>
+                <div class="hint">
+                    <a href="https://github.com/settings/tokens/new" target="_blank">创建 Token</a>
+                    ，需要勾选 <strong>gist</strong> 权限
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="gistID">Gist ID</label>
+                <input type="text" id="gistID" name="gistID" placeholder="从 Gist URL 中复制 ID" autocomplete="off">
+                <div class="hint">在 <a href="https://gist.github.com/" target="_blank">GitHub Gist</a> 中创建一个 Gist，ID 即为 URL 末尾的哈希值</div>
+            </div>
+            <div class="form-group">
+                <label for="gistFileName">Gist 文件名</label>
+                <input type="text" id="gistFileName" name="gistFileName" placeholder="BookmarkHub" autocomplete="off">
+                <div class="hint">Gist 中用于存储书签数据的文件名</div>
+            </div>
+            <div class="actions">
+                <button type="button" class="btn btn-primary" id="saveConfigBtn">保存配置</button>
+            </div>
+        </div>
+
+        <!-- Tab 2: 手动同步 -->
+        <div class="tab-content" id="tabSyncManual">
+            <p style="color:var(--body-mid);margin-bottom:16px;font-size:14px;">手动触发同步操作，需先在「同步配置」Tab 中配置 Token 和 Gist ID。</p>
+            <div style="display:flex;gap:12px;margin-bottom:12px;">
+                <button type="button" class="btn btn-primary" id="manualUploadBtn" style="flex:1;">⬆ 上传本地到云端</button>
+                <button type="button" class="btn btn-secondary" id="manualDownloadBtn" style="flex:1;">⬇ 从云端下载覆盖</button>
+            </div>
+            <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--hairline);">
+                <button type="button" class="btn btn-danger" id="manualClearBtn" style="width:100%;">🗑 清除本地所有书签</button>
+            </div>
+        </div>
+
+        <!-- Tab 2: 同步设置 -->
+        <div class="tab-content" id="tabSyncAuto">
+            <form id="syncForm">
+                <div class="form-group">
+                    <div class="checkbox-row">
+                        <input type="checkbox" id="enableNotify" name="enableNotify">
+                        <label for="enableNotify">操作完成时弹出浏览器通知</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="checkbox-row">
+                        <input type="checkbox" id="autoDownload" name="autoDownload">
+                        <label for="autoDownload">打开弹窗时自动下载</label>
+                    </div>
+                    <div class="hint">每次打开弹窗自动从 Gist 拉取最新书签并覆盖本地数据</div>
+                </div>
+                <div class="form-group" style="border-top:1px solid var(--hairline);padding-top:16px;">
+                    <div class="checkbox-row">
+                        <input type="checkbox" id="autoSync" name="autoSync">
+                        <label for="autoSync">定时自动同步</label>
+                    </div>
+                </div>
+                <div id="autoSyncConfig" style="display:none;margin-top:12px;padding:12px;background:var(--canvas-soft);border-radius:var(--radius-sm);">
+                    <div class="form-group" style="margin-bottom:12px;">
+                        <label for="autoSyncInterval" style="font-size:13px;">同步间隔</label>
+                        <select id="autoSyncInterval" style="margin-top:4px;">
+                            <option value="15">15 分钟</option>
+                            <option value="30">30 分钟</option>
+                            <option value="60" selected>1 小时</option>
+                            <option value="120">2 小时</option>
+                            <option value="360">6 小时</option>
+                            <option value="720">12 小时</option>
+                            <option value="1440">24 小时</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:12px;">
+                        <label for="autoSyncDirection" style="font-size:13px;">同步方向</label>
+                        <select id="autoSyncDirection" style="margin-top:4px;">
+                            <option value="download">从云端下载（覆盖本地）</option>
+                            <option value="upload">上传本地到云端（覆盖远程）</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+            <div class="actions">
+                <button type="button" class="btn btn-primary" id="saveAutoSyncBtn">保存配置</button>
+            </div>
+        </div>
+
+        <!-- Tab 3: 主题设置 -->
+        <div class="tab-content" id="tabTheme">
+            <div class="form-group">
+                <label>选择主题</label>
+                <div class="theme-grid" id="themeGrid">
+                    <div class="theme-card active" data-theme="dark-gold">
+                        <div class="theme-dot dark-gold"></div>
+                        <div>
+                            <div class="theme-label">暗夜黑金</div>
+                            <div class="theme-desc">深色背景 · 金色点缀</div>
+                        </div>
+                    </div>
+                    <div class="theme-card" data-theme="dark-crimson">
+                        <div class="theme-dot dark-crimson"></div>
+                        <div>
+                            <div class="theme-label">烈焰暗红</div>
+                            <div class="theme-desc">深色背景 · 红色点缀</div>
+                        </div>
+                    </div>
+                    <div class="theme-card" data-theme="ocean-blue">
+                        <div class="theme-dot ocean-blue"></div>
+                        <div>
+                            <div class="theme-label">深海蓝夜</div>
+                            <div class="theme-desc">深色背景 · 蓝色点缀</div>
+                        </div>
+                    </div>
+                    <div class="theme-card" data-theme="warm-light">
+                        <div class="theme-dot warm-light"></div>
+                        <div>
+                            <div class="theme-label">暖阳浅金</div>
+                            <div class="theme-desc">浅色背景 · 金色点缀</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="actions">
+                <button type="button" class="btn btn-primary" id="saveThemeBtn">保存主题</button>
+            </div>
+        </div>
+
+        <!-- Tab 3: 书签路径 -->
+        <div class="tab-content" id="tabBookmarkPath">
+            <div class="form-group">
+                <label for="bookmarkRootPath">书签根目录识别策略</label>
+                <select id="bookmarkRootPath">
+                    <option value="auto">自动检测（推荐）</option>
+                    <option value="bookmarks_bar">书签栏 / 书签工具栏</option>
+                    <option value="other_bookmarks">其他书签</option>
+                    <option value="menu_folder">书签菜单（Firefox）</option>
+                    <option value="custom:">自定义：指定文件夹名称</option>
+                </select>
+                <div class="hint">选择插件从哪个目录读取收藏夹数据。当QQ同步数据未被正确放入书签栏时，可尝试「其他书签」或「自定义」。</div>
+                <div class="form-group" id="customNameGroup" style="display:none; margin-top:12px;">
+                    <label for="customFolderName">文件夹名称</label>
+                    <input type="text" id="customFolderName" placeholder="如：普通书签、常用标签" autocomplete="off">
+                    <div class="hint">输入需要识别的文件夹名称，插件会在整个书签树中递归查找</div>
+                </div>
+                <div class="root-path-preview" id="pathPreview">
+                    <strong>自动检测</strong>：依次尝试 书签栏 → 其他书签 → 书签工具栏 → 兜底，找到第一个有内容的目录
+                </div>
+            </div>
+            <div class="form-group">
+                <label>当前浏览器可用目录</label>
+                <div id="rootCandidates" style="font-size:13px; color:var(--body-mid); line-height:1.8;">
+                    <span>打开弹窗后刷新可查看</span>
+                </div>
+                <div class="hint">以上为当前浏览器书签根目录下的可用文件夹，供参考选择</div>
+            </div>
+            <div class="actions">
+                <button type="button" class="btn btn-primary" id="savePathBtn">保存路径设置</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="js/sync-settings.js"></script>
+    <script src="js/settings.js"></script>
+</body>
+</html>
