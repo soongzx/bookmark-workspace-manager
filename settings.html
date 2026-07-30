@@ -104,7 +104,7 @@
             outline: none;
             transition: border-color 0.2s;
         }
-        input[type="text"]:focus, input[type="password"]:focus {
+        input[type="text"]:focus, input[type="password"]:focus, textarea:focus {
             border-color: var(--accent);
         }
         select {
@@ -245,22 +245,141 @@
             line-height: 1.6;
         }
         .root-path-preview strong { color: var(--ink); }
+        .sync-btn-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .btn-full {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 400;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            border: 1px solid var(--hairline);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-upload {
+            background: var(--accent);
+            color: var(--canvas);
+            border-color: var(--accent);
+        }
+        .btn-upload:hover { opacity: 0.9; }
+        .btn-download {
+            background: transparent;
+            color: var(--ink);
+        }
+        .btn-download:hover { background: var(--canvas-soft); }
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 24px;
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-pill);
+            background: transparent;
+            color: var(--body-mid);
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-family: inherit;
+            line-height: 1;
+        }
+        .close-btn:hover {
+            border-color: rgba(255,255,255,0.5);
+            color: var(--ink);
+            background: var(--canvas-soft);
+        }
+        /* ========== 同步管理卡片 ========== */
+        .mgmt-card {
+            border: 1px solid var(--hairline);
+            border-radius: 10px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        .mgmt-card:last-child { margin-bottom: 0; }
+        .mgmt-card-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--ink);
+            padding: 14px 18px;
+            background: var(--canvas-soft);
+            border-bottom: 1px solid var(--hairline);
+        }
+        .mgmt-card-body { padding: 18px; }
+        /* 危险操作卡片 */
+        .mgmt-card-danger {
+            border-color: rgba(220, 38, 38, 0.25);
+        }
+        .mgmt-card-danger .mgmt-card-title {
+            color: var(--danger);
+            background: rgba(220, 38, 38, 0.06);
+            border-bottom-color: rgba(220, 38, 38, 0.15);
+        }
+        /* 下载模式 radio 组 */
+        .mode-radio-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .mode-radio {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 12px 14px;
+            border: 1px solid var(--hairline);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .mode-radio:hover { border-color: var(--accent); }
+        .mode-radio input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .mode-radio.active {
+            border-color: var(--accent);
+            background: var(--accent-light);
+        }
+        .mode-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--ink);
+        }
+        .mode-desc {
+            font-size: 11px;
+            color: var(--body-mid);
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
-    <div class="settings-page">
+    <div class="settings-page" style="position:relative;">
+        <button class="close-btn" id="closeSettingsBtn" title="关闭">&#x2715;</button>
         <h1>系统设置</h1>
         <div class="subtitle">收藏夹工作区管理系统 - 全局配置</div>
 
         <div class="tabs" id="tabBar">
-            <button class="tab-btn active" data-tab="syncConfig">同步配置</button>
-            <button class="tab-btn" data-tab="syncManual">手动同步</button>
-            <button class="tab-btn" data-tab="syncAuto">同步设置</button>
+            <button class="tab-btn active" data-tab="syncConfig">认证配置</button>
+            <button class="tab-btn" data-tab="syncManage">同步管理</button>
             <button class="tab-btn" data-tab="theme">主题设置</button>
             <button class="tab-btn" data-tab="bookmarkPath">书签路径</button>
         </div>
 
-        <!-- Tab 1: 同步配置 -->
+        <!-- Tab 1: 认证配置 -->
         <div class="tab-content active" id="tabSyncConfig">
             <div class="form-group">
                 <label for="githubToken">GitHub Token</label>
@@ -286,66 +405,94 @@
             <div class="actions">
                 <button type="button" class="btn btn-primary" id="saveConfigBtn">保存配置</button>
             </div>
-        </div>
 
-        <!-- Tab 2: 手动同步 -->
-        <div class="tab-content" id="tabSyncManual">
-            <p style="color:var(--body-mid);margin-bottom:16px;font-size:14px;">手动触发同步操作，需先在「同步配置」Tab 中配置 Token 和 Gist ID。</p>
-            <div style="display:flex;gap:12px;margin-bottom:12px;">
-                <button type="button" class="btn btn-primary" id="manualUploadBtn" style="flex:1;">⬆ 上传本地到云端</button>
-                <button type="button" class="btn btn-secondary" id="manualDownloadBtn" style="flex:1;">⬇ 从云端下载覆盖</button>
-            </div>
-            <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--hairline);">
-                <button type="button" class="btn btn-danger" id="manualClearBtn" style="width:100%;">🗑 清除本地所有书签</button>
+            <div class="mgmt-card" style="margin-top:16px;">
+                <div class="mgmt-card-title">一键填充</div>
+                <div class="mgmt-card-body">
+                    <textarea id="authPasteArea" rows="4" placeholder="粘贴认证信息，自动识别并填入 Token / Gist ID / 文件名" style="width:100%;padding:10px 14px;border:1px solid var(--hairline);border-radius:var(--radius-sm);background:var(--canvas-soft);color:var(--ink);font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;resize:vertical;outline:none;transition:border-color 0.2s;line-height:1.5;"></textarea>
+                    <button type="button" class="btn btn-secondary" id="authParseBtn" style="margin-top:10px;width:100%;">识别并填充</button>
+                </div>
             </div>
         </div>
 
-        <!-- Tab 2: 同步设置 -->
-        <div class="tab-content" id="tabSyncAuto">
-            <form id="syncForm">
-                <div class="form-group">
-                    <div class="checkbox-row">
-                        <input type="checkbox" id="enableNotify" name="enableNotify">
-                        <label for="enableNotify">操作完成时弹出浏览器通知</label>
+        <!-- Tab 2: 同步管理 -->
+        <div class="tab-content" id="tabSyncManage">
+            <div class="mgmt-card">
+                <div class="mgmt-card-title">下载模式</div>
+                <div class="mgmt-card-body">
+                    <div class="mode-radio-group">
+                        <label class="mode-radio active">
+                            <input type="radio" name="syncMode" value="overwrite" checked>
+                            <span class="mode-label">覆盖</span>
+                            <span class="mode-desc">先清空本地书签，再从云端完整写入</span>
+                        </label>
+                        <label class="mode-radio">
+                            <input type="radio" name="syncMode" value="append">
+                            <span class="mode-label">追加</span>
+                            <span class="mode-desc">保留本地书签，仅新增云端条目</span>
+                        </label>
+                    </div>
+                    <div class="sync-btn-row">
+                        <button type="button" class="btn-full btn-upload" id="manualUploadBtn">上传本地到云端</button>
+                        <button type="button" class="btn-full btn-download" id="manualDownloadBtn">从云端下载</button>
                     </div>
                 </div>
-                <div class="form-group">
-                    <div class="checkbox-row">
-                        <input type="checkbox" id="autoDownload" name="autoDownload">
-                        <label for="autoDownload">打开弹窗时自动下载</label>
-                    </div>
-                    <div class="hint">每次打开弹窗自动从 Gist 拉取最新书签并覆盖本地数据</div>
+            </div>
+
+            <div class="mgmt-card">
+                <div class="mgmt-card-title">自动同步</div>
+                <div class="mgmt-card-body">
+                    <form id="syncForm">
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <div class="checkbox-row">
+                                <input type="checkbox" id="enableNotify" name="enableNotify">
+                                <label for="enableNotify">操作完成时弹出浏览器通知</label>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <div class="checkbox-row">
+                                <input type="checkbox" id="autoDownload" name="autoDownload">
+                                <label for="autoDownload">打开弹窗时自动下载</label>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <div class="checkbox-row">
+                                <input type="checkbox" id="autoSync" name="autoSync">
+                                <label for="autoSync">定时自动同步</label>
+                            </div>
+                        </div>
+                        <div id="autoSyncConfig" style="display:none;margin-top:12px;padding:12px 14px;background:var(--canvas-soft);border-radius:var(--radius-sm);gap:12px;flex-wrap:wrap;">
+                            <div style="flex:1;min-width:140px;">
+                                <label for="autoSyncInterval" style="font-size:12px;color:var(--body-mid);display:block;margin-bottom:4px;">同步间隔</label>
+                                <select id="autoSyncInterval">
+                                    <option value="15">15 分钟</option>
+                                    <option value="30">30 分钟</option>
+                                    <option value="60" selected>1 小时</option>
+                                    <option value="120">2 小时</option>
+                                    <option value="360">6 小时</option>
+                                    <option value="720">12 小时</option>
+                                    <option value="1440">24 小时</option>
+                                </select>
+                            </div>
+                            <div style="flex:1;min-width:140px;">
+                                <label for="autoSyncDirection" style="font-size:12px;color:var(--body-mid);display:block;margin-bottom:4px;">同步方向</label>
+                                <select id="autoSyncDirection">
+                                    <option value="download">从云端下载（覆盖本地）</option>
+                                    <option value="upload">上传本地到云端（覆盖远程）</option>
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+                    <button type="button" class="btn btn-primary" id="saveAutoSyncBtn" style="margin-top:14px;">保存自动同步配置</button>
                 </div>
-                <div class="form-group" style="border-top:1px solid var(--hairline);padding-top:16px;">
-                    <div class="checkbox-row">
-                        <input type="checkbox" id="autoSync" name="autoSync">
-                        <label for="autoSync">定时自动同步</label>
-                    </div>
+            </div>
+
+            <div class="mgmt-card mgmt-card-danger">
+                <div class="mgmt-card-title">危险操作</div>
+                <div class="mgmt-card-body">
+                    <p style="color:var(--body-mid);margin-bottom:12px;font-size:13px;">清除本地所有书签，无需 GitHub 配置。此操作不可撤销。</p>
+                    <button type="button" class="btn btn-danger" id="manualClearBtn" style="width:100%;">清除本地所有书签</button>
                 </div>
-                <div id="autoSyncConfig" style="display:none;margin-top:12px;padding:12px;background:var(--canvas-soft);border-radius:var(--radius-sm);">
-                    <div class="form-group" style="margin-bottom:12px;">
-                        <label for="autoSyncInterval" style="font-size:13px;">同步间隔</label>
-                        <select id="autoSyncInterval" style="margin-top:4px;">
-                            <option value="15">15 分钟</option>
-                            <option value="30">30 分钟</option>
-                            <option value="60" selected>1 小时</option>
-                            <option value="120">2 小时</option>
-                            <option value="360">6 小时</option>
-                            <option value="720">12 小时</option>
-                            <option value="1440">24 小时</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="margin-bottom:12px;">
-                        <label for="autoSyncDirection" style="font-size:13px;">同步方向</label>
-                        <select id="autoSyncDirection" style="margin-top:4px;">
-                            <option value="download">从云端下载（覆盖本地）</option>
-                            <option value="upload">上传本地到云端（覆盖远程）</option>
-                        </select>
-                    </div>
-                </div>
-            </form>
-            <div class="actions">
-                <button type="button" class="btn btn-primary" id="saveAutoSyncBtn">保存配置</button>
             </div>
         </div>
 
@@ -389,35 +536,61 @@
             </div>
         </div>
 
-        <!-- Tab 3: 书签路径 -->
+        <!-- Tab 4: 书签路径 -->
         <div class="tab-content" id="tabBookmarkPath">
-            <div class="form-group">
-                <label for="bookmarkRootPath">书签根目录识别策略</label>
-                <select id="bookmarkRootPath">
-                    <option value="auto">自动检测（推荐）</option>
-                    <option value="bookmarks_bar">书签栏 / 书签工具栏</option>
-                    <option value="other_bookmarks">其他书签</option>
-                    <option value="menu_folder">书签菜单（Firefox）</option>
-                    <option value="custom:">自定义：指定文件夹名称</option>
-                </select>
-                <div class="hint">选择插件从哪个目录读取收藏夹数据。当QQ同步数据未被正确放入书签栏时，可尝试「其他书签」或「自定义」。</div>
-                <div class="form-group" id="customNameGroup" style="display:none; margin-top:12px;">
-                    <label for="customFolderName">文件夹名称</label>
-                    <input type="text" id="customFolderName" placeholder="如：普通书签、常用标签" autocomplete="off">
-                    <div class="hint">输入需要识别的文件夹名称，插件会在整个书签树中递归查找</div>
-                </div>
-                <div class="root-path-preview" id="pathPreview">
-                    <strong>自动检测</strong>：依次尝试 书签栏 → 其他书签 → 书签工具栏 → 兜底，找到第一个有内容的目录
+            <div class="mgmt-card">
+                <div class="mgmt-card-title">读取策略</div>
+                <div class="mgmt-card-body">
+                    <div class="form-group" style="margin-bottom:10px;">
+                        <select id="bookmarkRootPath">
+                            <option value="auto">自动检测（推荐，覆盖所有浏览器）</option>
+                            <optgroup label="Chrome / Edge">
+                                <option value="chrome_bar">书签栏</option>
+                                <option value="chrome_other">其他书签</option>
+                            </optgroup>
+                            <optgroup label="Firefox">
+                                <option value="firefox_toolbar">书签工具栏</option>
+                                <option value="firefox_other">其他书签</option>
+                                <option value="firefox_menu">书签菜单</option>
+                            </optgroup>
+                            <optgroup label="QQ浏览器">
+                                <option value="qq_bar">书签栏（含登录/未登录适配）</option>
+                                <option value="qq_other">其他书签（QQ同步默认位置）</option>
+                            </optgroup>
+                            <option value="custom:">用户指定文件夹名称</option>
+                        </select>
+                    </div>
+                    <div class="root-path-preview" id="pathPreview">
+                        <strong>自动检测</strong>：依次尝试 书签栏 → 其他书签 → Firefox工具栏 → 未分类 → 标题匹配 → 兜底，找到第一个有内容的目录
+                    </div>
+                    <div id="customNameGroup" style="display:none; margin-top:12px;">
+                        <label for="customFolderName" style="font-size:13px;color:var(--body-mid);margin-bottom:6px;display:block;">文件夹名称（选「用户指定」后填写）</label>
+                        <input type="text" id="customFolderName" placeholder="如：普通书签、常用标签" autocomplete="off">
+                    </div>
                 </div>
             </div>
-            <div class="form-group">
-                <label>当前浏览器可用目录</label>
-                <div id="rootCandidates" style="font-size:13px; color:var(--body-mid); line-height:1.8;">
-                    <span>打开弹窗后刷新可查看</span>
+
+            <div class="mgmt-card">
+                <div class="mgmt-card-title">存储路径</div>
+                <div class="mgmt-card-body">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="storageFolder" style="font-size:13px;margin-bottom:6px;">Gist 下载存放文件夹（可选）</label>
+                        <input type="text" id="storageFolder" name="storageFolder" placeholder="留空则使用默认位置" autocomplete="off">
+                        <div class="hint">设置后下载的书签统一存入书签栏下指定文件夹。解决不同登录状态下路径不一致问题。推荐名称：<strong>BookmarkWorkspace</strong></div>
+                    </div>
                 </div>
-                <div class="hint">以上为当前浏览器书签根目录下的可用文件夹，供参考选择</div>
             </div>
-            <div class="actions">
+
+            <div class="mgmt-card">
+                <div class="mgmt-card-title">浏览器环境</div>
+                <div class="mgmt-card-body">
+                    <div id="rootCandidates" style="font-size:13px; color:var(--body-mid); line-height:1.8;">
+                        <span>打开弹窗后刷新可查看</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions" style="border-top:none;padding-top:0;margin-top:8px;">
                 <button type="button" class="btn btn-primary" id="savePathBtn">保存路径设置</button>
             </div>
         </div>

@@ -42,23 +42,79 @@ function createColumn(colData, colIndex, currentBodyEl) {
     const div = document.createElement('div');
     div.className = 'column';
     div.style.borderLeft = getLevelBorderStyle(colIndex);
-    const header = document.createElement('div');
+
+    // 应用持久化的列尺寸
+    var savedW = localStorage.getItem('workspace_columnWidth');
+    var savedH = localStorage.getItem('workspace_columnMaxHeight');
+    if (savedW) div.style.width = savedW + 'px';
+    if (savedH) div.style.maxHeight = savedH + 'px';
+
+    // 宽度拖拽把手
+    var wHandle = document.createElement('div');
+    wHandle.className = 'column-resize-w';
+    wHandle.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        wHandle.classList.add('resizing');
+        var startX = e.clientX;
+        var startW = div.offsetWidth;
+        function onMove(ev) {
+            var newW = Math.max(120, Math.min(800, startW + (ev.clientX - startX)));
+            div.style.width = newW + 'px';
+        }
+        function onUp() {
+            wHandle.classList.remove('resizing');
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            localStorage.setItem('workspace_columnWidth', div.offsetWidth);
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+    div.appendChild(wHandle);
+
+    // 高度拖拽把手
+    var hHandle = document.createElement('div');
+    hHandle.className = 'column-resize-h';
+    hHandle.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        hHandle.classList.add('resizing');
+        var startY = e.clientY;
+        var startH = div.offsetHeight;
+        function onMove(ev) {
+            var newH = Math.max(120, Math.min(900, startH + (ev.clientY - startY)));
+            div.style.maxHeight = newH + 'px';
+        }
+        function onUp() {
+            hHandle.classList.remove('resizing');
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            localStorage.setItem('workspace_columnMaxHeight', parseInt(div.style.maxHeight));
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+    div.appendChild(hHandle);
+
+    var header = document.createElement('div');
     header.className = 'column-header';
     header.textContent = colData.title;
     div.appendChild(header);
-    const body = document.createElement('div');
+    var body = document.createElement('div');
     body.className = 'column-body';
-    const children = colData.children || [];
+    var children = colData.children || [];
     if (!children.length) {
-        const empty = document.createElement('div');
+        var empty = document.createElement('div');
         empty.className = 'item';
         empty.style.color = 'var(--text-secondary)';
         empty.textContent = '（空文件夹）';
         body.appendChild(empty);
     } else {
-        const folders = children.filter(c => !c.url && c.children).sort((a, b) => a.title.localeCompare(b.title, 'zh-CN'));
-        const bms = children.filter(c => !!c.url).sort((a, b) => a.title.localeCompare(b.title, 'zh-CN'));
-        [...folders, ...bms].forEach(child => body.appendChild(createItemElement(child, colIndex, currentBodyEl)));
+        var folders = children.filter(function(c) { return !c.url && c.children; }).sort(function(a, b) { return a.title.localeCompare(b.title, 'zh-CN'); });
+        var bms = children.filter(function(c) { return !!c.url; }).sort(function(a, b) { return a.title.localeCompare(b.title, 'zh-CN'); });
+        var allItems = folders.concat(bms);
+        allItems.forEach(function(child) { body.appendChild(createItemElement(child, colIndex, currentBodyEl)); });
     }
     div.appendChild(body);
     return div;

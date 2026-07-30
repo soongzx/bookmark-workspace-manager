@@ -1,4 +1,12 @@
 // ========== 搜索 ==========
+function extractDomain(url) {
+    try {
+        var a = document.createElement('a');
+        a.href = url;
+        return a.hostname || url;
+    } catch (e) { return url; }
+}
+
 function performSearch(query) {
     if (!query || !query.trim()) { exitSearchMode(); return; }
     isSearchMode = true;
@@ -6,29 +14,36 @@ function performSearch(query) {
         panel2El.style.display = 'none';
         panelDivider.style.display = 'none';
     }
-    const q = query.trim().toLowerCase();
-    const results = allBookmarksFlat.filter(item =>
-        item.title.toLowerCase().includes(q) ||
-        item.url.toLowerCase().includes(q) ||
-        item.pathStr.toLowerCase().includes(q)
-    ).slice(0, 80);
+    var q = query.trim().toLowerCase();
+    var results = allBookmarksFlat.filter(function(item) {
+        return item.title.toLowerCase().indexOf(q) !== -1 ||
+               item.url.toLowerCase().indexOf(q) !== -1 ||
+               item.pathStr.toLowerCase().indexOf(q) !== -1;
+    }).slice(0, 80);
     panelBody1.innerHTML = '';
     if (!results.length) {
-        panelBody1.innerHTML = '<div class="empty-state"><span>🔍 无匹配结果</span></div>';
-        panel1Title.textContent = '🔎 搜索结果';
+        panelBody1.innerHTML = '<div class="empty-state"><span>无匹配结果</span></div>';
+        panel1Title.textContent = '搜索结果';
         return;
     }
-    const container = document.createElement('div');
+    var container = document.createElement('div');
     container.className = 'search-results';
     results.forEach(function(r) {
-        const el = document.createElement('div');
+        var el = document.createElement('div');
         el.className = 'search-result-item';
-        el.innerHTML = `<span class="result-icon">🔗</span><div class="result-info"><div class="result-title">${highlightMatch(escapeHTML(r.title), query)}</div><div class="result-path">${highlightMatch(escapeHTML(r.pathStr), query)}</div><div class="result-url">${escapeHTML(r.url || '')}</div></div>`;
+        el.title = r.url;
+        var domain = extractDomain(r.url);
+        el.innerHTML = '<img class="result-favicon" src="chrome://favicon/size/16@1x/' + escapeHTML(r.url) + '" width="16" height="16" onerror="this.style.display=\'none\'" />' +
+            '<div class="result-info">' +
+            '<div class="result-title">' + highlightMatch(escapeHTML(r.title), query) + '</div>' +
+            '<div class="result-path">' + highlightMatch(escapeHTML(r.pathStr), query) + '</div>' +
+            '</div>' +
+            '<span class="result-url-meta">' + escapeHTML(domain) + '</span>';
         el.addEventListener('click', function() { chrome.tabs.create({ url: r.url, active: true }); });
         container.appendChild(el);
     });
     panelBody1.appendChild(container);
-    panel1Title.textContent = '🔎 搜索结果';
+    panel1Title.textContent = '搜索结果 (' + results.length + ')';
 }
 
 function exitSearchMode() {
@@ -165,6 +180,8 @@ function clearAllCache() {
     localStorage.removeItem('workspace_panel2Path');
     localStorage.removeItem('workspace_panel1Scale');
     localStorage.removeItem('workspace_panel2Scale');
+    localStorage.removeItem('workspace_columnWidth');
+    localStorage.removeItem('workspace_columnMaxHeight');
 
     applyTheme('dark-gold');
     setPanelScale('panel1', 1);
@@ -202,11 +219,20 @@ function hideActivePanelHint() {
 // 下载完成后刷新书签视图
 async function refreshBookmarkView() {
     try {
-        var tree = await chrome.bookmarks.getTree();
-        bookmarkTreeRoot = tree[0];
-        bookmarksBarNode = findBookmarksBar(bookmarkTreeRoot, window._bookmarkRootPath || 'auto');
+        var snapshot = await new Promise(function(resolve) {
+            chrome.storage.local.get(['gistBookmarkSnapshot'], function(data) {
+                resolve(data.gistBookmarkSnapshot);
+            });
+        });
+        if (snapshot && snapshot.length > 0) {
+            bookmarkTreeRoot = buildVirtualTree(snapshot);
+        } else {
+            var tree = await chrome.bookmarks.getTree();
+            bookmarkTreeRoot = tree[0];
+        }
+        bookmarksBarNode = findBookmarksBar(bookmarkTreeRoot, window._bookmarkRootPath || 'auto', window._storageFolder || '');
         if (!bookmarksBarNode) {
-            panelBody1.innerHTML = '<div class="empty-state"><span>❌ 未找到书签栏</span></div>';
+            panelBody1.innerHTML = '<div class="empty-state"><span>未找到书签内容</span></div>';
             return;
         }
         workspaceFolders = (bookmarksBarNode.children || []).filter(function(c) { return !c.url && c.children; });
@@ -295,31 +321,51 @@ function bindEvents() {
 
     // 同步按钮事件（上传/下载）
     document.getElementById('uploadBtn').addEventListener('click', function () {
-        showToast('正在上传书签...');
-        chrome.runtime.sendMessage({ name: 'upload' }, function (res) {
-            if (chrome.runtime.lastError) {
-                showToast('上传失败: ' + chrome.runtime.lastError.message);
+        getSyncSettings(function (settings) {
+            if (!settings.githubToken || !settings.gistID) {
+                showToast('请先在设置中配置 GitHub 认证信息');
                 return;
             }
-            showToast(res.message);
+            showToast('正在上传书签...');
+            chrome.runtime.sendMessage({ name: 'upload' }, function (res) {
+                if (chrome.runtime.lastError) {
+                    showToast('上传失败: ' + chrome.runtime.lastError.message);
+                    return;
+                }
+                showToast(res.message);
+            });
         });
     });
 
     document.getElementById('downloadBtn').addEventListener('click', function () {
-        if (!confirm('⚠️ 下载操作将先清空本地所有书签，再从 Gist 拉取数据覆盖。\n\n此操作不可撤销，确定继续？')) return;
-        showToast('正在下载书签...');
-        chrome.runtime.sendMessage({ name: 'download' }, function (res) {
-            if (chrome.runtime.lastError) {
-                showToast('下载失败: ' + chrome.runtime.lastError.message);
+        getSyncSettings(function (settings) {
+            if (!settings.githubToken || !settings.gistID) {
+                showToast('请先在设置中配置 GitHub 认证信息');
                 return;
             }
-            showToast(res.message);
-            // 下载完成后刷新视图
-            localStorage.removeItem('workspace_panel1Path');
-            localStorage.removeItem('workspace_panel2Path');
-            panel1Path = [];
-            panel2Path = [];
-            refreshBookmarkView();
+            chrome.runtime.sendMessage({ name: 'getSyncMode' }, function (modeRes) {
+                var syncMode = (modeRes && modeRes.syncMode) || 'overwrite';
+                if (syncMode === 'overwrite') {
+                    if (!confirm('⚠️ 下载操作将先清空本地所有书签，再从 Gist 拉取数据覆盖。\n\n此操作不可撤销，确定继续？')) return;
+                } else {
+                    if (!confirm('将 Gist 中的书签合并到本地书签（跳过已存在的条目）。\n\n确定继续？')) return;
+                }
+                showToast('正在下载书签...');
+                chrome.runtime.sendMessage({ name: 'download', syncMode: syncMode }, function (res) {
+                    if (chrome.runtime.lastError) {
+                        showToast('下载失败: ' + chrome.runtime.lastError.message);
+                        return;
+                    }
+                    showToast(res.message);
+                    if (syncMode === 'overwrite') {
+                        localStorage.removeItem('workspace_panel1Path');
+                        localStorage.removeItem('workspace_panel2Path');
+                        panel1Path = [];
+                        panel2Path = [];
+                    }
+                    refreshBookmarkView();
+                });
+            });
         });
     });
 
@@ -350,12 +396,13 @@ async function init() {
             localStorage.setItem('workspace_theme', settings.theme);
         }
         window._bookmarkRootPath = settings.bookmarkRootPath || 'auto';
+        window._storageFolder = settings.storageFolder || '';
 
         // 自动下载：如果开启且配置完整，先下载再显示
         if (settings.autoDownload && settings.githubToken && settings.gistID && settings.gistFileName) {
             panelBody1.innerHTML = '<div class="empty-state"><span>⏳ 正在自动同步书签...</span></div>';
             var dlResult = await new Promise(function(resolve) {
-                chrome.runtime.sendMessage({ name: 'download' }, function(res) {
+                chrome.runtime.sendMessage({ name: 'download', syncMode: settings.syncMode }, function(res) {
                     resolve(res);
                 });
             });
@@ -378,16 +425,27 @@ async function init() {
     panel1El.style.flex = '1';
     document.documentElement.style.setProperty('--panel-wrap', 'wrap');
     setActivePanel('panel1');
+    bindEvents();
 
     panelBody1.innerHTML = '<div class="empty-state"><span>⏳ 加载书签中...</span></div>';
     panelBody2.innerHTML = '';
 
     try {
-        const tree = await chrome.bookmarks.getTree();
-        bookmarkTreeRoot = tree[0];
-        bookmarksBarNode = findBookmarksBar(bookmarkTreeRoot, window._bookmarkRootPath || 'auto');
+        // QQ 浏览器适配：优先检查 Gist 快照，有快照时使用虚拟树
+        var snapshot = await new Promise(function(resolve) {
+            chrome.storage.local.get(['gistBookmarkSnapshot'], function(data) {
+                resolve(data.gistBookmarkSnapshot);
+            });
+        });
+        if (snapshot && snapshot.length > 0) {
+            bookmarkTreeRoot = buildVirtualTree(snapshot);
+        } else {
+            const tree = await chrome.bookmarks.getTree();
+            bookmarkTreeRoot = tree[0];
+        }
+        bookmarksBarNode = findBookmarksBar(bookmarkTreeRoot, window._bookmarkRootPath || 'auto', window._storageFolder || '');
         if (!bookmarksBarNode) {
-            panelBody1.innerHTML = '<div class="empty-state"><span>❌ 未找到书签栏</span></div>';
+            panelBody1.innerHTML = '<div class="empty-state"><span>未找到书签内容</span><br><span style="font-size:12px;color:var(--body-mid);">请确认书签栏有数据，或使用下载功能同步 Gist 书签</span></div>';
             return;
         }
         workspaceFolders = (bookmarksBarNode.children || []).filter(function(c) { return !c.url && c.children; });
@@ -405,7 +463,6 @@ async function init() {
         } else {
             panelBody1.innerHTML = '<div class="empty-state"><span>📭 暂无内容</span></div>';
         }
-        bindEvents();
     } catch (e) {
         console.error(e);
         panelBody1.innerHTML = '<div class="empty-state"><span>❌ 加载失败</span></div>';

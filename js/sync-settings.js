@@ -11,6 +11,8 @@ var SYNC_DEFAULTS = {
     autoSync: false,
     autoSyncInterval: 60,
     autoSyncDirection: 'download',
+    syncMode: 'overwrite',
+    storageFolder: '',
     theme: 'dark-gold',
     bookmarkRootPath: 'auto'
 };

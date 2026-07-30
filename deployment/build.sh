@@ -116,7 +116,8 @@ build_zip() {
         -x "temp/*"
 }
 
-# 创建输出目录
+# 创建输出目录（先清理旧内容）
+rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"
 
 # ===================

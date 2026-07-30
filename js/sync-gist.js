@@ -2,6 +2,7 @@
 // 仅被 background.js 通过 importScripts 加载 (Service Worker 上下文)
 
 var GIST_API_BASE = 'https://api.github.com';
+var _createdBookmarkIds = [];
 
 // Gist API 请求封装
 function gistRequest(token, path, method, body, callback) {
@@ -132,6 +133,13 @@ function ensureFolderIds(callback) {
                 if (t.indexOf('其他书签') !== -1 || t.indexOf('other bookmark') !== -1 || t.indexOf('unsorted') !== -1) ROOT_FOLDER_IDS.other = c.id;
                 if (t.indexOf('mobile') !== -1 || t.indexOf('移动') !== -1) ROOT_FOLDER_IDS.mobile = c.id;
             });
+            // QQ 浏览器适配：标准 id='2'（其他书签）为空时，创建书签回退到书签栏
+            if (ROOT_FOLDER_IDS.other === '2') {
+                var otherNode = root.children.find(function(c) { return c.id === '2'; });
+                if (!otherNode || !otherNode.children || otherNode.children.length === 0) {
+                    ROOT_FOLDER_IDS.other = ROOT_FOLDER_IDS.toolbar;
+                }
+            }
         }
         var cbs = FOLDER_IDS_PENDING;
         FOLDER_IDS_PENDING = null;
@@ -146,9 +154,40 @@ function createBookmarkTree(bookmarkList, callback) {
     });
 }
 
-function _createBookmarkTree(bookmarkList, callback) {
+function createBookmarkTreeInFolder(bookmarkList, parentId, callback) {
+    ensureFolderIds(function () {
+        _createBookmarkTree(bookmarkList, callback, parentId);
+    });
+}
+
+function _createBookmarkTree(bookmarkList, callback, storageParentId) {
     if (!bookmarkList || bookmarkList.length === 0) { callback(null); return; }
     var ids = ROOT_FOLDER_IDS;
+    _createdBookmarkIds = [];
+
+    if (storageParentId) {
+        var allChildren = [];
+        for (var si = 0; si < bookmarkList.length; si++) {
+            var rootNode = bookmarkList[si];
+            if (rootNode.children) {
+                for (var sj = 0; sj < rootNode.children.length; sj++) {
+                    rootNode.children[sj].parentId = storageParentId;
+                    allChildren.push(rootNode.children[sj]);
+                }
+            }
+        }
+        if (allChildren.length === 0) { callback(null); return; }
+        var pending = allChildren.length;
+        function done() {
+            pending--;
+            if (pending === 0 && callback) callback(null);
+        }
+        for (var si2 = 0; si2 < allChildren.length; si2++) {
+            processNode(allChildren[si2]);
+        }
+        return;
+    }
+
     var pending = bookmarkList.length;
 
     function done() {
@@ -190,6 +229,9 @@ function _createBookmarkTree(bookmarkList, callback) {
             if (chrome.runtime.lastError) {
                 console.error('创建书签失败:', chrome.runtime.lastError.message, title);
             }
+            if (res && res.id) {
+                _createdBookmarkIds.push(res.id);
+            }
             if (res && res.id && children && children.length > 0) {
                 for (var k = 0; k < children.length; k++) {
                     children[k].parentId = res.id;
@@ -209,7 +251,44 @@ function _createBookmarkTree(bookmarkList, callback) {
 // ========== 获取完整书签树 ==========
 function getBookmarks(callback) {
     chrome.bookmarks.getTree(function (tree) {
-        callback(tree);
+        if (tree && tree[0] && tree[0].children && tree[0].children.length > 0) {
+            var hasContent = false;
+            for (var i = 0; i < tree[0].children.length; i++) {
+                var c = tree[0].children[i];
+                if (c.children && c.children.length > 0) { hasContent = true; break; }
+            }
+            if (hasContent) { callback(tree); return; }
+        }
+        // 兜底：QQ 浏览器 getTree() 返回空，改用 search({}) 重建树
+        chrome.bookmarks.search({}, function (results) {
+            if (results && results.length > 0) {
+                var nodeMap = {};
+                for (var i = 0; i < results.length; i++) {
+                    nodeMap[results[i].id] = results[i];
+                }
+                var rootChildren = [];
+                for (var j = 0; j < results.length; j++) {
+                    if (results[j].parentId === '0' && !results[j].url) {
+                        rootChildren.push(results[j]);
+                    }
+                }
+                if (rootChildren.length > 0) {
+                    for (var k = 0; k < results.length; k++) {
+                        results[k].children = [];
+                    }
+                    for (var m = 0; m < results.length; m++) {
+                        var parent = nodeMap[results[m].parentId];
+                        if (parent) parent.children.push(results[m]);
+                    }
+                    callback([{ id: '0', title: '', children: rootChildren }]);
+                    return;
+                }
+            }
+            // 最后兜底：getChildren("0")
+            chrome.bookmarks.getChildren('0', function (rootChildren) {
+                callback([{ id: '0', title: '', children: rootChildren || [] }]);
+            });
+        });
     });
 }
 
@@ -232,7 +311,7 @@ function getBookmarkCount(bookmarkList) {
 function clearAllBookmarks(callback) {
     getBookmarks(function (tree) {
         if (!tree || !tree[0] || !tree[0].children) {
-            callback(null);
+            tryClearViaStoredIds(callback);
             return;
         }
         var nodesToRemove = [];
@@ -245,17 +324,81 @@ function clearAllBookmarks(callback) {
             }
         }
         if (nodesToRemove.length === 0) {
-            callback(null);
+            tryClearViaStoredIds(callback);
             return;
         }
         var pending = nodesToRemove.length;
         function removeDone() {
             pending--;
-            if (pending === 0 && callback) callback(null);
+            if (pending === 0) tryClearViaStoredIds(callback);
         }
         for (var k = 0; k < nodesToRemove.length; k++) {
             chrome.bookmarks.removeTree(nodesToRemove[k].id, removeDone);
         }
+    });
+}
+
+function tryClearViaStoredIds(callback) {
+    chrome.storage.local.get(['gistBookmarkIds'], function (data) {
+        var ids = data.gistBookmarkIds || [];
+        if (ids.length === 0) { callback(null); return; }
+        var pending = ids.length;
+        function done() {
+            pending--;
+            if (pending === 0) {
+                chrome.storage.local.remove(['gistBookmarkIds', 'gistBookmarkSnapshot']);
+                if (callback) callback(null);
+            }
+        }
+        // 反向遍历：先删子节点再删父节点；用 remove() 替代 removeTree()
+        for (var i = ids.length - 1; i >= 0; i--) {
+            chrome.bookmarks.remove(ids[i], function () {
+                if (chrome.runtime.lastError) {
+                    // remove() 对非空文件夹会失败，忽略
+                }
+                done();
+            });
+        }
+    });
+}
+
+// 仅清空指定文件夹的子节点
+function clearFolderContents(folderId, callback) {
+    if (!folderId) { callback(null); return; }
+    chrome.bookmarks.getChildren(folderId, function (children) {
+        if (!children || children.length === 0) {
+            tryClearViaStoredIds(callback);
+            return;
+        }
+        var pending = children.length;
+        function done() {
+            pending--;
+            if (pending === 0 && callback) callback(null);
+        }
+        for (var i = 0; i < children.length; i++) {
+            chrome.bookmarks.removeTree(children[i].id, done);
+        }
+    });
+}
+
+// 查找或创建存储文件夹（在书签栏下）
+function findOrCreateStorageFolder(folderName, callback) {
+    if (!folderName) { callback(null); return; }
+    getBookmarks(function (tree) {
+        var root = tree && tree[0];
+        if (!root || !root.children) { callback(null); return; }
+        var bar = root.children.find(function (c) {
+            return c.id === '1' || c.id === 'toolbar_____';
+        });
+        if (!bar) { callback(null); return; }
+        var existing = bar.children.find(function (c) {
+            return c.title === folderName && !c.url && c.children;
+        });
+        if (existing) { callback(existing.id); return; }
+        chrome.bookmarks.create({ parentId: bar.id, title: folderName }, function (folder) {
+            if (chrome.runtime.lastError) { callback(null); return; }
+            callback(folder.id);
+        });
     });
 }
 
@@ -298,7 +441,7 @@ function uploadBookmarks(callback) {
 }
 
 // ========== 从 Gist 下载书签 ==========
-function downloadBookmarks(callback) {
+function downloadBookmarks(callback, overrideSyncMode) {
     getSyncSettings(function (settings) {
         if (!settings.githubToken) { callback(new Error('未配置 GitHub Token，请在设置中填写')); return; }
         if (!settings.gistID) { callback(new Error('未配置 Gist ID，请在设置中填写')); return; }
@@ -312,23 +455,77 @@ function downloadBookmarks(callback) {
                     callback(new Error('Gist 文件中无书签数据'));
                     return;
                 }
-                clearAllBookmarks(function (clearErr) {
-                    if (clearErr) { callback(clearErr); return; }
-                    createBookmarkTree(syncData.bookmarks, function (createErr) {
-                        if (createErr) { callback(createErr); return; }
-                        var count = getBookmarkCount(syncData.bookmarks);
-                        chrome.storage.local.set({ remoteBookmarkCount: count });
-                        if (settings.enableNotify) {
-                            chrome.notifications.create({
-                                type: 'basic',
-                                iconUrl: 'icons/icon48.png',
-                                title: '下载书签',
-                                message: '成功下载 ' + count + ' 条书签'
-                            });
-                        }
-                        callback(null, { count: count });
-                    });
-                });
+                var syncMode = overrideSyncMode || settings.syncMode || 'overwrite';
+                var storageFolder = settings.storageFolder || '';
+
+                function doCreateIn(parentId) {
+                    if (parentId) {
+                        createBookmarkTreeInFolder(syncData.bookmarks, parentId, function (createErr) {
+                            if (createErr) { callback(createErr); return; }
+                            var count = getBookmarkCount(syncData.bookmarks);
+                            chrome.storage.local.set({ remoteBookmarkCount: count, gistBookmarkIds: _createdBookmarkIds, gistBookmarkSnapshot: syncData.bookmarks });
+                            if (settings.enableNotify) {
+                                chrome.notifications.create({
+                                    type: 'basic',
+                                    iconUrl: 'icons/icon48.png',
+                                    title: '下载书签',
+                                    message: '成功下载 ' + count + ' 条书签' + (syncMode === 'append' ? '（追加模式）' : '')
+                                });
+                            }
+                            callback(null, { count: count });
+                        });
+                    } else {
+                        createBookmarkTree(syncData.bookmarks, function (createErr) {
+                            if (createErr) { callback(createErr); return; }
+                            var count = getBookmarkCount(syncData.bookmarks);
+                            chrome.storage.local.set({ remoteBookmarkCount: count, gistBookmarkIds: _createdBookmarkIds, gistBookmarkSnapshot: syncData.bookmarks });
+                            if (settings.enableNotify) {
+                                chrome.notifications.create({
+                                    type: 'basic',
+                                    iconUrl: 'icons/icon48.png',
+                                    title: '下载书签',
+                                    message: '成功下载 ' + count + ' 条书签' + (syncMode === 'append' ? '（追加模式）' : '')
+                                });
+                            }
+                            callback(null, { count: count });
+                        });
+                    }
+                }
+
+                function doCreate() {
+                    if (storageFolder) {
+                        findOrCreateStorageFolder(storageFolder, function (folderId) {
+                            if (folderId) {
+                                doCreateIn(folderId);
+                            } else {
+                                doCreateIn(null);
+                            }
+                        });
+                    } else {
+                        doCreateIn(null);
+                    }
+                }
+
+                if (syncMode === 'overwrite') {
+                    if (storageFolder) {
+                        findOrCreateStorageFolder(storageFolder, function (folderId) {
+                            if (folderId) {
+                                clearFolderContents(folderId, function () {
+                                    doCreateIn(folderId);
+                                });
+                            } else {
+                                doCreateIn(null);
+                            }
+                        });
+                    } else {
+                        clearAllBookmarks(function (clearErr) {
+                            if (clearErr) { callback(clearErr); return; }
+                            doCreate();
+                        });
+                    }
+                } else {
+                    doCreate();
+                }
             } catch (e) {
                 callback(new Error('Gist 数据解析失败: ' + e.message));
             }

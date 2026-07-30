@@ -92,20 +92,23 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
                 success: !err,
                 message: err ? err.message : ('成功下载 ' + (result ? result.count : 0) + ' 条书签')
             });
+        }, msg.syncMode);
+        return true;
+    }
+
+    if (msg.name === 'getSyncMode') {
+        getSyncSettings(function (settings) {
+            sendResponse({ syncMode: settings.syncMode || 'overwrite' });
         });
         return true;
     }
 
     if (msg.name === 'clearAll') {
-        getSyncSettings(function (settings) {
-            if (!settings.githubToken || !settings.gistID || !settings.gistFileName) {
-                sendResponse({ success: false, message: '请先在设置中配置 GitHub Token、Gist ID 和文件名' });
-                return;
-            }
-            clearAllBookmarks(function (err) {
-                if (err) {
-                    sendResponse({ success: false, message: err.message });
-                } else {
+        clearAllBookmarks(function (err) {
+            if (err) {
+                sendResponse({ success: false, message: err.message });
+            } else {
+                getSyncSettings(function (settings) {
                     if (settings.enableNotify) {
                         chrome.notifications.create({
                             type: 'basic',
@@ -114,9 +117,9 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
                             message: '本地所有书签已清空'
                         });
                     }
-                    sendResponse({ success: true, message: '本地书签已清空' });
-                }
-            });
+                });
+                sendResponse({ success: true, message: '本地书签已清空' });
+            }
         });
         return true;
     }
